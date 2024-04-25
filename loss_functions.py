@@ -120,3 +120,66 @@ def initialize_hji_air3D(dataset, minWith):
                 'diff_constraint_hom': torch.abs(diff_constraint_hom).sum()}
 
     return hji_air3D
+
+
+def initialize_inverted_pendulum(dataset, minWith):
+    # Initialize the loss function for the inverted pendulum problem
+    # The dynamics parameters
+    length = dataset.length
+    mass = dataset.mass
+    b = dataset.b
+    omega_max = dataset.omega_max
+
+    def hji_inverted_pendulum(model_output, gt):
+        source_boundary_values = gt['source_boundary_values']
+        x = model_output['model_in']  # (meta_batch_size, num_points, 3)
+        y = model_output['model_out']  # (meta_batch_size, num_points, 1)
+        dirichlet_mask = gt['dirichlet_mask']
+        batch_size = x.shape[1]
+
+        du, status = diff_operators.jacobian(y, x)
+        dudt = du[..., 0, 0]
+        dudx = du[..., 0, 1:]
+
+        x_theta = x[..., 1] * 1.0
+        x_theta_dot = x[..., 2] * 1.0
+
+        # Scale the costate for theta appropriately to align with the range of [-pi, pi]
+        # dudx[..., 2] = dudx[..., 2] / alpha_angle
+        # Scale the coordinates
+        # x_theta = alpha_angle * x_theta
+
+        # Air3D dynamics
+        # \dot x    = -v_a + v_b \cos \psi + a y
+        # \dot y    = v_b \sin \psi - a x
+        # \dot \psi = b - a
+
+        # Compute the hamiltonian for the ego vehicle
+        g1 = 0
+        g2 = -1 / (mass*(length**2)/3)
+        ham = omega_max * torch.abs(dudx[..., 0] * g1 + dudx[..., 1] * g2) # Control component
+        # ham = ham - omega_max * torch.abs(dudx[..., 2]) # Disturbance component
+        ham = ham + (x_theta_dot * dudx[..., 0]) +  (mass*9.81*length*torch.sin(x_theta)/2)/ (mass*length**2 / 3)
+
+        # ham = omega_max * torch.abs(dudx[..., 0] * x[..., 2] - dudx[..., 1] * x[..., 1] - dudx[..., 2])  # Control component
+        # ham = ham - omega_max * torch.abs(dudx[..., 2])  # Disturbance component
+        # ham = ham + (velocity * (torch.cos(x_theta) - 1.0) * dudx[..., 0]) + (velocity * torch.sin(x_theta) * dudx[..., 1])  # Constant component
+
+        # If we are computing BRT then take min with zero
+        if minWith == 'zero':
+            ham = torch.clamp(ham, max=0.0)
+
+        if torch.all(dirichlet_mask):
+            diff_constraint_hom = torch.Tensor([0])
+        else:
+            diff_constraint_hom = dudt - ham
+            if minWith == 'target':
+                diff_constraint_hom = torch.max(diff_constraint_hom[:, :, None], y - source_boundary_values)
+
+        dirichlet = y[dirichlet_mask] - source_boundary_values[dirichlet_mask]
+
+        # A factor of 15e2 to make loss roughly equal
+        return {'dirichlet': torch.abs(dirichlet).sum() * batch_size / 15e2,
+                'diff_constraint_hom': torch.abs(diff_constraint_hom).sum()}
+
+    return hji_inverted_pendulum
