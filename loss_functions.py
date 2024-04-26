@@ -127,7 +127,8 @@ def initialize_inverted_pendulum(dataset, minWith):
     # The dynamics parameters
     length = dataset.length
     mass = dataset.mass
-    b = dataset.b
+    # b = dataset.b
+    b = 0
     omega_max = dataset.omega_max
 
     def hji_inverted_pendulum(model_output, gt):
