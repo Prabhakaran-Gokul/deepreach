@@ -25,9 +25,9 @@ p.add_argument('--use_wandb', default=False, action='store_true', help='use wand
 use_wandb = p.parse_known_args()[0].use_wandb
 if use_wandb:
     p.add_argument('--wandb_project', type=str, required=True, help='wandb project')
-    p.add_argument('--wandb_entity', type=str, required=True, help='wandb entity')
-    p.add_argument('--wandb_group', type=str, required=True, help='wandb group')
-    p.add_argument('--wandb_name', type=str, required=True, help='name of wandb run')
+    p.add_argument('--wandb_entity', type=str, required=False, help='wandb entity')
+    p.add_argument('--wandb_group', type=str, required=False, help='wandb group')
+    p.add_argument('--wandb_name', type=str, required=False, help='name of wandb run')
 
 mode = p.parse_known_args()[0].mode
 
@@ -117,8 +117,8 @@ opt = p.parse_args()
 if use_wandb:
     wandb.init(
         project = opt.wandb_project,
-        entity = opt.wandb_entity,
-        group = opt.wandb_group,
+        # entity = opt.wandb_entity,
+        # group = opt.wandb_group,
         name = opt.wandb_name,
     )
     wandb.config.update(opt)

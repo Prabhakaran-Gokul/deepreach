@@ -449,10 +449,6 @@ class InvertedPendulum(Dynamics):
         wrapped_state[..., 0] = (wrapped_state[..., 0] + math.pi) % (2*math.pi) - math.pi
         return wrapped_state
         
-    # Dubins3D dynamics
-    # \dot x    = v \cos \theta
-    # \dot y    = v \sin \theta
-    # \dot \theta = u
     def dsdt(self, state, control, disturbance):
         if self.freeze_model:
             raise NotImplementedError
